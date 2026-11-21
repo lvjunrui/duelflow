@@ -55,6 +55,12 @@ jobs:
             exit 1
           fi
           ls -lh DuelFlow.apk
+          sha256sum DuelFlow.apk
+
+      - name: 校验签名
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs DuelFlow.apk
 
       - uses: actions/upload-artifact@v4
         with:
