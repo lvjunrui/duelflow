@@ -157,6 +157,18 @@
     if (state.ms) bits.push(state.ms + 'ms');
     if (state.note) bits.push(state.note);
     status(bits.join(' · '));
+    saveDiag(merged);
+  }
+
+  /* 留一份最近一次识别的原始数据，出问题可以一键复制出来反馈 */
+  function saveDiag(merged) {
+    try {
+      localStorage.setItem('df.diag.v1', JSON.stringify({
+        at: Date.now(), w: state.w, h: state.h, ms: state.ms,
+        hits: state.cards, lines: state.lines,
+        merged: { opp: merged.opp, mine: merged.mine, hand: merged.hand, unknown: merged.unknown }
+      }));
+    } catch (e) {}
   }
 
   window.__onCards = function (cards, w, h, ms, note) {
@@ -203,6 +215,14 @@
     });
 
     $('add').addEventListener('click', function () { confirmInput('hq'); });
+
+    $('diag').addEventListener('click', function () {
+      var raw = '';
+      try { raw = localStorage.getItem('df.diag.v1') || ''; } catch (e) {}
+      if (!raw) return status('还没有识别记录，先点「识别屏幕」');
+      if (callNative('copy', raw)) status('已复制识别数据，可以直接粘贴给 AI');
+      else status('复制失败：浮窗通道未连接');
+    });
     $('oadd').addEventListener('click', function () { confirmInput('oq'); });
 
     document.addEventListener('click', function (e) {

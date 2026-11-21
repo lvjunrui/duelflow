@@ -4,6 +4,8 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
@@ -533,6 +535,19 @@ public class OverlayService extends Service {
         @JavascriptInterface
         public void focus(boolean on) {
             main.post(() -> setFocusable(on));
+        }
+
+        /** 把最后一次识别的原始数据放进剪贴板，方便反馈问题时发给 AI。 */
+        @JavascriptInterface
+        public void copy(String text) {
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(ClipData.newPlainText("DuelFlow", text == null ? "" : text));
+                }
+            } catch (Throwable t) {
+                Log.w(TAG, "copy failed", t);
+            }
         }
 
         @JavascriptInterface
