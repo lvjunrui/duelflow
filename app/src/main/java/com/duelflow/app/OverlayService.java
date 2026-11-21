@@ -509,13 +509,50 @@ public class OverlayService extends Service {
         }
         legs.set(2);
         long t0 = System.currentTimeMillis();
-        List<CardMatcher.Hit> hits = Collections.emptyList();
+        List<CardMatcher.Hit> hits = new ArrayList<>();
         String matchNote = "";
         try {
             CardLibrary lib = CardLibrary.get(this);
-            CardMatcher.Options opt = new CardMatcher.Options();
-            hits = CardMatcher.match(px, w, h, lib.templates, opt);
             if (lib.cards.isEmpty()) matchNote = "（卡图库为空）";
+
+            /* ① 手牌：按 MD 固定版面定位每个卡位，再小范围对齐（最准，优先） */
+            int handHit = 0;
+            for (SlotRecognizer.Slot s : SlotRecognizer.hand(px, w, h, lib.templates)) {
+                if (!s.confident()) continue;
+                CardMatcher.Hit hh = new CardMatcher.Hit();
+                hh.name = s.name;
+                hh.score = s.score;
+                hh.cx = s.x + s.w / 2f;
+                hh.cy = s.y + s.h / 2f;
+                hh.cw = s.w;
+                hh.ch = s.h;
+                hits.add(hh);
+                handHit++;
+            }
+
+            /* ② 场上：只在场地中间那条区域搜，别再让左右两侧的火焰纹路刷出上百个假命中 */
+            int fx0 = (int) (w * 0.28f), fx1 = (int) (w * 0.74f);
+            int fy0 = (int) (h * 0.05f), fy1 = (int) (h * 0.80f);
+            int fw = Math.max(1, fx1 - fx0), fh = Math.max(1, fy1 - fy0);
+            int[] fieldPx = new int[fw * fh];
+            for (int y = 0; y < fh; y++) {
+                System.arraycopy(px, (fy0 + y) * w + fx0, fieldPx, y * fw, fw);
+            }
+            CardMatcher.Options opt = new CardMatcher.Options();
+            int[] size = new int[2];
+            float[] gray = CardMatcher.toGray(fieldPx, fw, fh, opt.workWidth, size);
+            float scale = (float) fw / size[0];
+            List<CardMatcher.Hit> raw = CardMatcher.matchGray(gray, size[0], size[1],
+                    lib.templates, opt, scale);
+            int fieldHit = 0;
+            for (CardMatcher.Hit hh : raw) {
+                if (hh.unknown()) continue;      /* 认不出来就不报，免得面板一堆噪声 */
+                hh.cx += fx0;
+                hh.cy += fy0;
+                hits.add(hh);
+                fieldHit++;
+            }
+            matchNote = "（手牌 " + handHit + "，场上 " + fieldHit + "）";
         } catch (Throwable t) {
             Log.w(TAG, "card match failed", t);
             matchNote = "（卡图匹配失败：" + t.getClass().getSimpleName() + "）";
