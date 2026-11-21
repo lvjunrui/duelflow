@@ -69,4 +69,51 @@ t('所有路线需求卡都在卡库或卡组里', () => {
   C.LINES.forEach(l => l.reqs.forEach(r => assert.ok(names.has(r), l.id + ' 缺 ' + r)));
 });
 
+
+t('模板命中按上下分区：对方/我方/手牌', () => {
+  const hits = [
+    { n: '冰剑龙 镜翠幻种', s: 0.93, x: 300, y: 700, w: 160, h: 230 },
+    { n: '烙印龙 阿尔比昂', s: 0.88, x: 500, y: 1400, w: 160, h: 230 },
+    { n: '灰流丽', s: 0.91, x: 300, y: 2080, w: 140, h: 200 }
+  ];
+  const m = C.mergeScan({ hits, lines: [], w: 1080, h: 2400 });
+  assert.deepStrictEqual(m.opp.map(c => c.name), ['冰剑龙 镜翠幻种']);
+  assert.deepStrictEqual(m.mine.map(c => c.name), ['烙印龙 阿尔比昂']);
+  assert.deepStrictEqual(m.hand.map(c => c.name), ['灰流丽']);
+});
+
+t('卡面上的 ATK 数字会挂到对应命中', () => {
+  const hits = [{ n: '冰剑龙 镜翠幻种', s: 0.9, x: 300, y: 700, w: 200, h: 290 }];
+  const lines = [
+    { t: '3000', x: 300, y: 760, w: 80, h: 30 },
+    { t: '1200', x: 900, y: 2100, w: 80, h: 30 }
+  ];
+  const m = C.mergeScan({ hits, lines, w: 1080, h: 2400 });
+  assert.strictEqual(m.opp[0].atk, 3000);
+  assert.ok(!m.hand.length, '远处的数字不该被算进这张卡');
+});
+
+t('认不出名字的命中算未识别，不当作卡牌', () => {
+  const hits = [{ n: null, s: 0.66, x: 400, y: 600, w: 200, h: 290 }];
+  const m = C.mergeScan({ hits, lines: [], w: 1080, h: 2400 });
+  assert.strictEqual(m.unknown, 1);
+  assert.strictEqual(m.opp.length, 0);
+});
+
+t('模板没命中时，文字识别的卡名补一层', () => {
+  const lines = [{ t: '灰流丽', x: 400, y: 200, w: 120, h: 40 }];
+  const m = C.mergeScan({ hits: [], lines, w: 1080, h: 2400 });
+  assert.deepStrictEqual(m.opp.map(c => c.name), ['灰流丽']);
+  assert.strictEqual(m.opp[0].src, 'ocr');
+});
+
+t('同名牌重复命中只留一张', () => {
+  const hits = [
+    { n: '灰流丽', s: 0.9, x: 300, y: 700, w: 160, h: 230 },
+    { n: '灰流丽', s: 0.82, x: 320, y: 720, w: 160, h: 230 }
+  ];
+  const m = C.mergeScan({ hits, lines: [], w: 1080, h: 2400 });
+  assert.strictEqual(m.opp.length, 1);
+});
+
 console.log('\n' + n + ' 项完成');

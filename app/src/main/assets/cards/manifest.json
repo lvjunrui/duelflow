@@ -1,0 +1,394 @@
+[
+ {
+  "id": 25311006,
+  "cn": "三战之才",
+  "en": "Triple Tactics Talent",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "25311006.jpg"
+ },
+ {
+  "id": 74405783,
+  "cn": "三英的相剑师",
+  "en": "The Three Champions of Swordsoul",
+  "atk": 2500,
+  "kind": "魔法",
+  "file": "74405783.jpg"
+ },
+ {
+  "id": 44146295,
+  "cn": "冰剑龙 镜翠幻种",
+  "en": "Mirrorjade the Iceblade Dragon",
+  "atk": 3000,
+  "kind": "融合怪",
+  "file": "44146295.jpg"
+ },
+ {
+  "id": 51409648,
+  "cn": "击铁龙 猎宝机装",
+  "en": "Rindbrumm the Striking Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "51409648.jpg"
+ },
+ {
+  "id": 82344137,
+  "cn": "原初之神 法拉",
+  "en": "Phara the Primordial Goddess",
+  "atk": 2800,
+  "kind": "魔法",
+  "file": "82344137.jpg"
+ },
+ {
+  "id": 27204311,
+  "cn": "原始生命态 尼比鲁",
+  "en": "Nibiru, the Primal Being",
+  "atk": 3000,
+  "kind": "怪兽",
+  "file": "27204311.jpg"
+ },
+ {
+  "id": 76666602,
+  "cn": "吞飧圣痕之龙",
+  "en": "The Dragon that Devours the Dogma",
+  "atk": 3000,
+  "kind": "融合怪",
+  "file": "76666602.jpg"
+ },
+ {
+  "id": 27118421,
+  "cn": "四天之龙 凶饿猛毒结合龙",
+  "en": "Starving Venom Fusion Dragon, Four Heavenly Dragons",
+  "atk": 2800,
+  "kind": "融合怪",
+  "file": "27118421.jpg"
+ },
+ {
+  "id": 23434538,
+  "cn": "增殖的Z",
+  "en": "Maxx \"C\"",
+  "atk": 500,
+  "kind": "怪兽",
+  "file": "23434538.jpg"
+ },
+ {
+  "id": 42141493,
+  "cn": "多多迷宝・软绵雀精",
+  "en": "Mulcharmy Fuwalos",
+  "atk": 100,
+  "kind": "怪兽",
+  "file": "42141493.jpg"
+ },
+ {
+  "id": 1984618,
+  "cn": "天底的使徒",
+  "en": "Nadir Servant",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "1984618.jpg"
+ },
+ {
+  "id": 45484331,
+  "cn": "守宝团・姬特",
+  "en": "Springans Kitt",
+  "atk": 1700,
+  "kind": "怪兽",
+  "file": "45484331.jpg"
+ },
+ {
+  "id": 75500286,
+  "cn": "封印的黄金柜",
+  "en": "Gold Sarcophagus",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "75500286.jpg"
+ },
+ {
+  "id": 89558743,
+  "cn": "小世界",
+  "en": "Small World",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "89558743.jpg"
+ },
+ {
+  "id": 35261759,
+  "cn": "强欲而贪欲之壶",
+  "en": "Pot of Desires",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "35261759.jpg"
+ },
+ {
+  "id": 62962630,
+  "cn": "惨绝戏之导化 阿卢绯尔",
+  "en": "Aluber the Jester of Despia",
+  "atk": 1800,
+  "kind": "怪兽",
+  "file": "62962630.jpg"
+ },
+ {
+  "id": 94145021,
+  "cn": "抽牌小丑与封锁鸟",
+  "en": "Droll & Lock Bird",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "94145021.jpg"
+ },
+ {
+  "id": 69946549,
+  "cn": "捕食植物 魔星花龙",
+  "en": "Predaplant Dragostapelia",
+  "atk": 2700,
+  "kind": "融合怪",
+  "file": "69946549.jpg"
+ },
+ {
+  "id": 60303688,
+  "cn": "教导之圣女 艾克利西亚",
+  "en": "Dogmatika Ecclesia, the Virtuous",
+  "atk": 1500,
+  "kind": "魔法",
+  "file": "60303688.jpg"
+ },
+ {
+  "id": 80843006,
+  "cn": "昏淆的米库西亚",
+  "en": "Mixousia the Confounder",
+  "atk": 2700,
+  "kind": "融合怪",
+  "file": "80843006.jpg"
+ },
+ {
+  "id": 33854624,
+  "cn": "渊兽 玛格纳姆特",
+  "en": "Bystial Magnamhut",
+  "atk": 2500,
+  "kind": "怪兽",
+  "file": "33854624.jpg"
+ },
+ {
+  "id": 60242223,
+  "cn": "渊兽 萨罗尼尔",
+  "en": "Bystial Saronir",
+  "atk": 2500,
+  "kind": "怪兽",
+  "file": "60242223.jpg"
+ },
+ {
+  "id": 14558127,
+  "cn": "灰流丽",
+  "en": "Ash Blossom & Joyous Spring",
+  "atk": 0,
+  "kind": "怪兽",
+  "file": "14558127.jpg"
+ },
+ {
+  "id": 41373230,
+  "cn": "灰烬龙 落尘劣种",
+  "en": "Titaniklad the Ash Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "41373230.jpg"
+ },
+ {
+  "id": 81767888,
+  "cn": "烙印之剑",
+  "en": "Branded Sword",
+  "atk": 0,
+  "kind": "陷阱",
+  "file": "81767888.jpg"
+ },
+ {
+  "id": 29948294,
+  "cn": "烙印之气炎",
+  "en": "Branded in High Spirits",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "29948294.jpg"
+ },
+ {
+  "id": 36637374,
+  "cn": "烙印开幕",
+  "en": "Branded Opening",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "36637374.jpg"
+ },
+ {
+  "id": 17751597,
+  "cn": "烙印断罪",
+  "en": "Branded Retribution",
+  "atk": 0,
+  "kind": "陷阱",
+  "file": "17751597.jpg"
+ },
+ {
+  "id": 44362883,
+  "cn": "烙印融合",
+  "en": "Branded Fusion",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "44362883.jpg"
+ },
+ {
+  "id": 87746184,
+  "cn": "烙印龙 阿尔比昂",
+  "en": "Albion the Branded Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "87746184.jpg"
+ },
+ {
+  "id": 102380,
+  "cn": "熔岩魔神・岩浆魔像",
+  "en": "Lava Golem",
+  "atk": 3000,
+  "kind": "怪兽",
+  "file": "102380.jpg"
+ },
+ {
+  "id": 55273560,
+  "cn": "白之圣女 艾克利西亚",
+  "en": "Incredible Ecclesia, the Virtuous",
+  "atk": 1500,
+  "kind": "魔法",
+  "file": "55273560.jpg"
+ },
+ {
+  "id": 34995106,
+  "cn": "白之烙印",
+  "en": "Branded in White",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "34995106.jpg"
+ },
+ {
+  "id": 73819701,
+  "cn": "白之落胤",
+  "en": "Fallen of the White Dragon",
+  "atk": 1800,
+  "kind": "怪兽",
+  "file": "73819701.jpg"
+ },
+ {
+  "id": 70534340,
+  "cn": "神炎龙 卢绯里昂",
+  "en": "Lubellion the Searing Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "70534340.jpg"
+ },
+ {
+  "id": 24299458,
+  "cn": "禁忌的一滴",
+  "en": "Forbidden Droplet",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "24299458.jpg"
+ },
+ {
+  "id": 72578374,
+  "cn": "空隙原星龙",
+  "en": "Khaos Starsource Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "72578374.jpg"
+ },
+ {
+  "id": 30271097,
+  "cn": "落胤与圣女",
+  "en": "The Fallen & The Virtuous",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "30271097.jpg"
+ },
+ {
+  "id": 95515789,
+  "cn": "赫之圣女 卡尔塔西亚",
+  "en": "Blazing Cartesia, the Virtuous",
+  "atk": 1500,
+  "kind": "魔法",
+  "file": "95515789.jpg"
+ },
+ {
+  "id": 82738008,
+  "cn": "赫之烙印",
+  "en": "Branded in Red",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "82738008.jpg"
+ },
+ {
+  "id": 24915933,
+  "cn": "赫焉龙 格兰吉尼奥尔",
+  "en": "Granguignol the Dusk Dragon",
+  "atk": 2500,
+  "kind": "融合怪",
+  "file": "24915933.jpg"
+ },
+ {
+  "id": 48130397,
+  "cn": "超融合",
+  "en": "Super Polymerization",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "48130397.jpg"
+ },
+ {
+  "id": 82489470,
+  "cn": "轩辕的相剑师",
+  "en": "The Golden Swordsoul",
+  "atk": 1800,
+  "kind": "魔法",
+  "file": "82489470.jpg"
+ },
+ {
+  "id": 11110587,
+  "cn": "邻人割草",
+  "en": "That Grass Looks Greener",
+  "atk": 0,
+  "kind": "魔法",
+  "file": "11110587.jpg"
+ },
+ {
+  "id": 19304410,
+  "cn": "铁兽守宝团 炎工之姬特",
+  "en": "Tri-Brigade Springans Kitt",
+  "atk": 1700,
+  "kind": "怪兽",
+  "file": "19304410.jpg"
+ },
+ {
+  "id": 19096726,
+  "cn": "铁兽鸟 墨丘利耶",
+  "en": "Tri-Brigade Mercourier",
+  "atk": 800,
+  "kind": "怪兽",
+  "file": "19096726.jpg"
+ },
+ {
+  "id": 68468459,
+  "cn": "阿尔白斯之落胤",
+  "en": "Fallen of Albaz",
+  "atk": 1800,
+  "kind": "怪兽",
+  "file": "68468459.jpg"
+ },
+ {
+  "id": 25451383,
+  "cn": "黑衣龙 阿尔比昂",
+  "en": "Albion the Shrouded Dragon",
+  "atk": 2500,
+  "kind": "怪兽",
+  "file": "25451383.jpg"
+ },
+ {
+  "id": 78397661,
+  "cn": "黑衣龙之艾克利西亚",
+  "en": "Ecclesia and the Dark Dragon",
+  "atk": 2500,
+  "kind": "魔法",
+  "file": "78397661.jpg"
+ }
+]

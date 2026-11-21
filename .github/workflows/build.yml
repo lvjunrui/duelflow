@@ -21,6 +21,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: 逻辑测试（JS + 卡图匹配）
+        run: |
+          node test/core.test.js
+          node test/overlay.test.js
+          javac -d /tmp/dfout app/src/main/java/com/duelflow/app/CardMatcher.java test/java/MatcherTest.java
+          java -cp /tmp/dfout MatcherTest app/src/main/assets/cards
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'

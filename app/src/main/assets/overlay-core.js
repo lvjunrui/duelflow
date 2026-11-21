@@ -116,9 +116,13 @@
   }
 
   function atkOf(text) {
-    var m = /ATK[\s:：]*(\d{1,5})/i.exec(String(text || ''));
+    var t = String(text || '');
+    var m = /ATK[\s:：]*(\d{1,5})/i.exec(t);
     if (m) return Number(m[1]);
-    m = /(\d{3,5})\s*\/\s*(\d{3,5})/.exec(String(text || ''));
+    m = /(\d{3,5})\s*\/\s*(\d{3,5})/.exec(t);
+    if (m) return Number(m[1]);
+    /* MD 场上怪兽卡下沿只显示一个裸数字（如 3000） */
+    m = /^\s*(\d{3,5})\s*$/.exec(t);
     return m ? Number(m[1]) : 0;
   }
 
@@ -276,6 +280,105 @@
     return out.slice(0, 5);
   }
 
+
+  /* ---------------- 屏幕识别结果合并 ---------------- */
+
+  /* 命中框的上下位置 → 归属：对方场地 / 我方场地 / 手牌 */
+  function sideOf(cy, h) {
+    var r = (cy || 0) / (h || 1);
+    if (r < 0.52) return 'opp';
+    if (r < 0.80) return 'mine';
+    return 'hand';
+  }
+
+  function inBox(line, hit) {
+    var lx = (line.x || 0) + (line.w || 0) / 2;
+    var ly = (line.y || 0) + (line.h || 0) / 2;
+    var hw = (hit.w || 0) / 2, hh = (hit.h || 0) / 2;
+    return Math.abs(lx - hit.x) <= hw * 1.15 && ly >= hit.y - hh && ly <= hit.y + hh * 1.45;
+  }
+
+  /* 命中框附近（卡面下沿）的攻击力数字 */
+  function atkNear(hit, lines) {
+    var best = 0;
+    (lines || []).forEach(function (l) {
+      if (!inBox(l, hit)) return;
+      var a = atkOf(l.t);
+      if (a > best) best = a;
+    });
+    return best;
+  }
+
+  function tagOf(name) {
+    for (var i = 0; i < DB.length; i++) if (DB[i].n === name) return DB[i].t;
+    return '卡';
+  }
+
+  /**
+   * 合并两条识别通道：
+   *   hits  = 卡图模板匹配（方案二）[{n,s,x,y,w,h}]，n 为空表示有卡但没认出来
+   *   lines = 分带放大 OCR（方案一）[{t,x,y,w,h}]
+   * 返回 { opp, mine, hand, unknown, hits, lines }
+   */
+  function mergeScan(input) {
+    var hits = (input && input.hits) || [];
+    var lines = (input && input.lines) || [];
+    var W = (input && input.w) || 1080;
+    var H = (input && input.h) || 1920;
+    var buckets = { opp: [], mine: [], hand: [] };
+    var unknown = 0;
+    var unknownBoxes = [];
+
+    hits.forEach(function (hit) {
+      if (!hit.n) {
+        if ((hit.s || 0) >= 0.6) {
+          unknown++;
+          unknownBoxes.push({ x: hit.x, y: hit.y, w: hit.w, h: hit.h, s: hit.s });
+        }
+        return;
+      }
+      var side = sideOf(hit.y, H);
+      buckets[side].push({
+        name: hit.n,
+        tag: tagOf(hit.n),
+        atk: atkNear(hit, lines),
+        conf: hit.s || 0,
+        src: 'art',
+        y: hit.y
+      });
+    });
+
+    /* 模板没认出来、但文字里能读到的卡名，补一层（置信度低） */
+    var covered = hits.filter(function (h) { return h.n; });
+    lines.forEach(function (l) {
+      var m = match(l.t);
+      if (!m) return;
+      var cy = (l.y || 0) + (l.h || 0) / 2;
+      var near = covered.some(function (hit) {
+        return Math.abs(hit.y - cy) < (hit.h || 100) * 0.6 && Math.abs(hit.x - ((l.x || 0) + (l.w || 0) / 2)) < (hit.w || 100) * 0.6;
+      });
+      if (near) return;
+      buckets[sideOf(cy, H)].push({
+        name: m.name,
+        tag: m.tag,
+        atk: atkOf(l.t),
+        conf: 0.4,
+        src: 'ocr',
+        y: cy
+      });
+    });
+
+    return {
+      opp: dedupe(buckets.opp),
+      mine: dedupe(buckets.mine),
+      hand: dedupe(buckets.hand),
+      unknown: unknown,
+      unknownBoxes: unknownBoxes,
+      hits: hits.length,
+      lines: lines.length
+    };
+  }
+
   var api = {
     DB: DB,
     LINES: LINES,
@@ -284,7 +387,9 @@
     match: match,
     atkOf: atkOf,
     parse: parse,
-    decide: decide
+    decide: decide,
+    mergeScan: mergeScan,
+    sideOf: sideOf
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -40,8 +40,12 @@ import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 悬浮窗服务：MediaProjection 截屏 + 端侧中文 OCR，把识别结果交给浮窗里的 WebView 决策。
@@ -301,7 +305,8 @@ public class OverlayService extends Service {
                 postError("没取到画面，请再点一次");
                 return;
             }
-            runOcr(bitmap);
+            analyze(bitmap);
+            bitmap.recycle();
         }), 220);
     }
 
@@ -332,18 +337,119 @@ public class OverlayService extends Service {
         }
     }
 
-    private void runOcr(Bitmap bmp) {
+    /** 截到一帧后的完整分析：模板匹配认卡（方案二）+ 分带放大 OCR（方案一）。 */
+    private void analyze(Bitmap bmp) {
+        final int w = bmp.getWidth(), h = bmp.getHeight();
+        int[] px = new int[w * h];
         try {
-            InputImage input = InputImage.fromBitmap(bmp, 0);
-            ocr.process(input)
-                    .addOnSuccessListener(text -> sendOcr(text, bmp.getWidth(), bmp.getHeight()))
-                    .addOnFailureListener(e -> postError("识别失败：" + e.getClass().getSimpleName()));
+            bmp.getPixels(px, 0, w, 0, 0, w, h);
         } catch (Throwable t) {
-            postError("识别异常：" + t.getClass().getSimpleName());
+            postError("读取画面失败：" + t.getClass().getSimpleName());
+            return;
+        }
+        long t0 = System.currentTimeMillis();
+        List<CardMatcher.Hit> hits = Collections.emptyList();
+        String matchNote = "";
+        try {
+            CardLibrary lib = CardLibrary.get(this);
+            CardMatcher.Options opt = new CardMatcher.Options();
+            hits = CardMatcher.match(px, w, h, lib.templates, opt);
+            if (lib.cards.isEmpty()) matchNote = "（卡图库为空）";
+        } catch (Throwable t) {
+            Log.w(TAG, "card match failed", t);
+            matchNote = "（卡图匹配失败：" + t.getClass().getSimpleName() + "）";
+        }
+        long ms = System.currentTimeMillis() - t0;
+        sendCards(hits, w, h, ms, matchNote);
+        runOcrBands(bmp, w, h);
+    }
+
+    private void sendCards(List<CardMatcher.Hit> hits, int w, int h, long ms, String note) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < hits.size(); i++) {
+            CardMatcher.Hit hit = hits.get(i);
+            if (i > 0) sb.append(',');
+            sb.append("{\"n\":").append(jsString(hit.name))
+                    .append(",\"s\":").append(Math.round(hit.score * 100) / 100f)
+                    .append(",\"x\":").append(Math.round(hit.cx))
+                    .append(",\"y\":").append(Math.round(hit.cy))
+                    .append(",\"w\":").append(Math.round(hit.cw))
+                    .append(",\"h\":").append(Math.round(hit.ch))
+                    .append('}');
+        }
+        sb.append(']');
+        final String js = "window.__onCards && window.__onCards(" + sb + "," + w + "," + h + ","
+                + ms + "," + jsString(note) + ")";
+        main.post(() -> eval(js));
+    }
+
+    /**
+     * 方案一：把整屏切成上下两条带，按 1.5 倍左右放大后再 OCR。
+     * 卡面文字在整屏里只有十几个像素高，放大后识别率明显提升。
+     */
+    private void runOcrBands(Bitmap bmp, int w, int h) {
+        if (ocr == null) {
+            postError("识别通道未就绪，请重开浮窗");
+            return;
+        }
+        final int bands = 2;
+        final List<String> parts = Collections.synchronizedList(new ArrayList<String>());
+        final AtomicInteger done = new AtomicInteger();
+        for (int i = 0; i < bands; i++) {
+            int y0 = i == 0 ? 0 : h / 2;
+            int y1 = i == 0 ? h / 2 : h;
+            bandOcr(bmp, 0, y0, w, y1 - y0, parts, done, bands, w, h);
         }
     }
 
-    private void sendOcr(Text text, int w, int h) {
+    private void bandOcr(Bitmap src, int x0, int y0, int bw, int bh,
+                         List<String> parts, AtomicInteger done, int total, int screenW, int screenH) {
+        Bitmap band = null, scaled = null;
+        try {
+            band = Bitmap.createBitmap(src, x0, y0, bw, bh);
+            float scale = Math.min(2.0f, 1600f / bw);
+            if (scale < 1.05f) scale = 1.05f;
+            scaled = Bitmap.createScaledBitmap(band, Math.round(bw * scale), Math.round(bh * scale), true);
+            final float s = scale;
+            final int oy = y0;
+            InputImage input = InputImage.fromBitmap(scaled, 0);
+            ocr.process(input)
+                    .addOnSuccessListener(text -> {
+                        parts.add(linesJson(text, s, oy));
+                        finishBands(parts, done, total);
+                    })
+                    .addOnFailureListener(e -> {
+                        finishBands(parts, done, total);
+                    });
+        } catch (Throwable t) {
+            Log.w(TAG, "band ocr failed", t);
+            finishBands(parts, done, total);
+        } finally {
+            if (band != null && band != scaled) band.recycle();
+        }
+    }
+
+    private void finishBands(List<String> parts, AtomicInteger done, int total) {
+        if (done.incrementAndGet() < total) return;
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        synchronized (parts) {
+            for (String p : parts) {
+                if (p == null || p.length() <= 2) continue;
+                String inner = p.substring(1, p.length() - 1);
+                if (inner.isEmpty()) continue;
+                if (!first) sb.append(',');
+                first = false;
+                sb.append(inner);
+            }
+        }
+        sb.append(']');
+        final String js = "window.__onOcr && window.__onOcr(" + sb + ")";
+        main.post(() -> eval(js));
+    }
+
+    /** OCR 结果 → [{t,x,y,w,h}]，坐标换算回整屏坐标系。 */
+    private String linesJson(Text text, float scale, int offsetY) {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         try {
@@ -354,10 +460,10 @@ public class OverlayService extends Service {
                     if (!first) sb.append(',');
                     first = false;
                     sb.append("{\"t\":").append(jsString(line.getText()))
-                            .append(",\"x\":").append(r.left)
-                            .append(",\"y\":").append(r.top)
-                            .append(",\"w\":").append(r.width())
-                            .append(",\"h\":").append(r.height())
+                            .append(",\"x\":").append(Math.round(r.left / scale))
+                            .append(",\"y\":").append(Math.round(r.top / scale) + offsetY)
+                            .append(",\"w\":").append(Math.round(r.width() / scale))
+                            .append(",\"h\":").append(Math.round(r.height() / scale))
                             .append('}');
                 }
             }
@@ -365,8 +471,7 @@ public class OverlayService extends Service {
             Log.w(TAG, "read lines failed", t);
         }
         sb.append(']');
-        final String js = "window.__onOcr && window.__onOcr(" + sb + "," + w + "," + h + ")";
-        main.post(() -> eval(js));
+        return sb.toString();
     }
 
     private void eval(String js) {
