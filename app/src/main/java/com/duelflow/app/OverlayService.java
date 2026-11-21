@@ -412,20 +412,32 @@ public class OverlayService extends Service {
             scaled = Bitmap.createScaledBitmap(band, Math.round(bw * scale), Math.round(bh * scale), true);
             final float s = scale;
             final int oy = y0;
+            final Bitmap toFree = scaled;
             InputImage input = InputImage.fromBitmap(scaled, 0);
             ocr.process(input)
                     .addOnSuccessListener(text -> {
                         parts.add(linesJson(text, s, oy));
+                        recycleQuietly(toFree);
                         finishBands(parts, done, total);
                     })
                     .addOnFailureListener(e -> {
+                        recycleQuietly(toFree);
                         finishBands(parts, done, total);
                     });
         } catch (Throwable t) {
             Log.w(TAG, "band ocr failed", t);
+            recycleQuietly(scaled);
             finishBands(parts, done, total);
         } finally {
-            if (band != null && band != scaled) band.recycle();
+            if (band != null && band != scaled) recycleQuietly(band);
+        }
+    }
+
+    private static void recycleQuietly(Bitmap bmp) {
+        if (bmp == null) return;
+        try {
+            bmp.recycle();
+        } catch (Throwable ignored) {
         }
     }
 
