@@ -39,13 +39,24 @@
     });
   }
 
-  function callNative(name, arg) {
+  var lastBridgeError = '';
+
+  /* 调原生方法。参数个数必须和 Java 侧完全一致：Android 的 WebView 桥在多传参数时
+     会直接抛 "called with N arguments, expected M"，以前这里吞掉异常，导致
+     「识别屏幕」根本没跑到原生代码（0.4.3 及之前一直识别不了就是这个原因）。 */
+  function callNative(name) {
+    var args = Array.prototype.slice.call(arguments, 1);
     try {
       var n = window.DFNative;
-      if (!n || typeof n[name] !== 'function') return false;
-      n[name](arg);
+      if (!n || typeof n[name] !== 'function') {
+        lastBridgeError = '找不到原生方法 ' + name;
+        return false;
+      }
+      n[name].apply(n, args);
       return true;
     } catch (e) {
+      lastBridgeError = name + '：' + (e && e.message ? e.message : e);
+      note('ERR 桥接 ' + lastBridgeError);
       return false;
     }
   }
@@ -169,7 +180,7 @@
     }, 25000);
     if (!callNative('capture')) {
       busy = false;
-      status('浮窗通道未连接：请从 App 里点「浮窗」开启');
+      status('调截屏失败（' + (lastBridgeError || '未知错误') + '）：请关掉浮窗，回 App 重新点「浮窗」');
     }
   }
 

@@ -25,6 +25,7 @@ jobs:
         run: |
           node test/core.test.js
           node test/overlay.test.js
+          node test/overlay.dom.test.js
           javac -d /tmp/dfout app/src/main/java/com/duelflow/app/CardMatcher.java test/java/MatcherTest.java
           java -cp /tmp/dfout MatcherTest app/src/main/assets/cards
 
