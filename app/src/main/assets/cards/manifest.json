@@ -390,5 +390,13 @@
   "atk": 2500,
   "kind": "魔法",
   "file": "78397661.jpg"
+ },
+ {
+  "id": 0,
+  "cn": "盖牌",
+  "en": "Card Back",
+  "atk": 0,
+  "kind": "盖牌",
+  "file": "back.jpg"
  }
 ]
