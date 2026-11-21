@@ -49,7 +49,7 @@ function makeWindow() {
   /* 按 Android WebView（gin java bridge）的规则：参数个数必须和 Java 方法一致，
      多传一个 undefined 也会抛 "called with N arguments, expected M"。
      桥的方法签名见 OverlayService.Bridge。 */
-  const sig = { capture: 0, close: 0, focus: 1, copy: 1, toast: 1 };
+  const sig = { capture: 0, close: 0, focus: 1, copy: 1, toast: 1, snap: 0 };
   const DFNative = {};
   Object.keys(sig).forEach((name) => {
     DFNative[name] = function () {
@@ -112,6 +112,14 @@ console.log('浮窗 DOM 冒烟测试');
   ok(cap.length === 1 && cap[0].args.length === 0, 'capture() 不传多余参数（Java 方法是零参数）');
   ok(!/通道未连接/.test(els.status.textContent), '状态行没有误报「浮窗通道未连接」');
   ok(/正在截屏/.test(els.status.textContent), '状态行进入「正在截屏」');
+}
+
+/* 1b. 存图按钮走 snap() 而不是 capture() */
+{
+  const { els, calls } = boot();
+  els.snap.click();
+  ok(calls.some((c) => c.name === 'snap'), '存图按钮调用 snap()');
+  ok(!calls.some((c) => c.name === 'capture'), '存图不重复触发 capture()');
 }
 
 /* 2. 原生阶段提示、卡图与文字两路结果都能落地 */

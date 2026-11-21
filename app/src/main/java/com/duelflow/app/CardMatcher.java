@@ -146,9 +146,10 @@ public final class CardMatcher {
     }
 
     public static final class Options {
-        /** 卡宽相对工作图宽度的比例档位（覆盖 0.09~0.21 屏宽） */
-        public float[] widthFactors = {0.09f, 0.108f, 0.13f, 0.157f, 0.19f, 0.215f};
-        public int workWidth = 540;
+        /** 卡宽相对工作图宽度的比例档位（0.045 ≈ 手牌，0.21 ≈ 场上大卡） */
+        public float[] widthFactors = {0.045f, 0.052f, 0.06f, 0.07f, 0.082f, 0.095f,
+                0.11f, 0.13f, 0.155f, 0.185f, 0.215f};
+        public int workWidth = 1080;
         /** 粗筛阈值（8x8 面积平均描述子 NCC） */
         public float descGate = 0.62f;
         /** 精匹配接受阈值 */

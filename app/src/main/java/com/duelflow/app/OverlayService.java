@@ -349,7 +349,7 @@ public class OverlayService extends Service {
     private static final String NO_FRAME_HINT =
             "没截到画面：请确认系统弹窗选的是「共享整个屏幕」，并把游戏切到前台后再点一次";
 
-    private void captureOnce() {
+    private void captureOnce(boolean saveShot) {
         if (root == null || projection == null || ocr == null) {
             postError("识别通道未就绪：请关掉浮窗，回 App 重新点「浮窗」");
             return;
@@ -392,6 +392,7 @@ public class OverlayService extends Service {
                 }
                 postStatus("已截到 " + bmp.getWidth() + "×" + bmp.getHeight()
                         + (note != null ? "（" + note + "）" : "") + "，认卡中…");
+                if (saveShot) savePng(bmp);
                 try {
                     analyze(bmp);
                 } catch (Throwable t) {
@@ -667,6 +668,44 @@ public class OverlayService extends Service {
         }
     }
 
+    /** 把当前帧存成 PNG 到「下载/DSH-Go/duelflow-shots/」（不需要存储权限）。 */
+    private void savePng(Bitmap bmp) {
+        String name = "duelflow-"
+                + new java.text.SimpleDateFormat("MMdd-HHmmss", java.util.Locale.US).format(new java.util.Date())
+                + ".png";
+        if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                android.content.ContentValues v = new android.content.ContentValues();
+                v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
+                v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/png");
+                v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                        android.os.Environment.DIRECTORY_DOWNLOADS + "/DSH-Go/duelflow-shots");
+                android.net.Uri uri = getContentResolver()
+                        .insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                if (uri == null) throw new IllegalStateException("insert 失败");
+                java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+                bmp.compress(Bitmap.CompressFormat.PNG, 100, os);
+                os.close();
+                postStatus("已存图：下载/DSH-Go/duelflow-shots/" + name);
+                return;
+            } catch (Throwable t) {
+                Log.w(TAG, "save png via MediaStore failed", t);
+            }
+        }
+        try {
+            java.io.File dir = new java.io.File(getExternalFilesDir(null), "shots");
+            dir.mkdirs();
+            java.io.File f = new java.io.File(dir, name);
+            java.io.FileOutputStream fo = new java.io.FileOutputStream(f);
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, fo);
+            fo.close();
+            postStatus("已存图：" + f.getAbsolutePath());
+        } catch (Throwable t) {
+            Log.w(TAG, "save png failed", t);
+            postError("存图失败：" + t.getClass().getSimpleName());
+        }
+    }
+
     /** 阶段提示：让浮窗上一直能看到「卡在哪一步」。 */
     private void postStatus(String msg) {
         main.post(() -> eval("window.__onStatus && window.__onStatus(" + jsString(msg) + ")"));
@@ -700,7 +739,13 @@ public class OverlayService extends Service {
     private class Bridge {
         @JavascriptInterface
         public void capture() {
-            main.post(OverlayService.this::captureOnce);
+            main.post(() -> captureOnce(false));
+        }
+
+        /** 识别一次，并把原始帧存到「下载/DSH-Go/duelflow-shots/」，方便离线调阈值。 */
+        @JavascriptInterface
+        public void snap() {
+            main.post(() -> captureOnce(true));
         }
 
         @JavascriptInterface

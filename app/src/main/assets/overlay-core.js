@@ -331,7 +331,7 @@
 
     hits.forEach(function (hit) {
       if (!hit.n) {
-        if ((hit.s || 0) >= 0.6) {
+        if ((hit.s || 0) >= 0.66 && unknownBoxes.length < 12) {
           unknown++;
           unknownBoxes.push({ x: hit.x, y: hit.y, w: hit.w, h: hit.h, s: hit.s });
         }

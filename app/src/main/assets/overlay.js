@@ -159,6 +159,8 @@
   var busy = false;
   var scanTimer = null;
 
+  var saveNext = false;
+
   function scan() {
     if (!hasNative()) {
       status('浮窗通道未连接：请从 App 里点「浮窗」开启');
@@ -178,7 +180,9 @@
       note('scan 超时');
       status('25 秒没有结果：确认录屏共享的是「整个屏幕」，或关掉浮窗重开');
     }, 25000);
-    if (!callNative('capture')) {
+    var method = saveNext ? 'snap' : 'capture';
+    saveNext = false;
+    if (!callNative(method)) {
       busy = false;
       status('调截屏失败（' + (lastBridgeError || '未知错误') + '）：请关掉浮窗，回 App 重新点「浮窗」');
     }
@@ -264,6 +268,14 @@
     dl.innerHTML = C.DB.map(function (c) { return '<option value="' + esc(c.n) + '">'; }).join('');
 
     $('scan').addEventListener('click', scan);
+    $('snap').addEventListener('click', function () {
+      if (busy) {
+        status('上一次识别还没结束，稍等一下');
+        return;
+      }
+      saveNext = true;
+      scan();
+    });
 
     $('cls').addEventListener('click', function () {
       state.opp = [];
