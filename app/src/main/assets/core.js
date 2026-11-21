@@ -148,6 +148,22 @@
     };
   }
 
+
+  /* 路线步骤归一化：兼容「字符串数组」和「对象数组（详细版 JSON）」 */
+  function normalizeSteps(steps) {
+    if (!Array.isArray(steps)) return [];
+    return steps.map(function (s) {
+      if (s && typeof s === 'object') {
+        var line = (s.n ? s.n + '. ' : '') + (s.phase ? '【' + s.phase + '】' : '') + (s.do || s.text || '');
+        if (s.purpose) line += '（' + s.purpose + '）';
+        if (s.tip) line += ' 提示：' + s.tip;
+        if (s.risk) line += ' 风险：' + s.risk;
+        return line;
+      }
+      return String(s == null ? '' : s);
+    }).filter(function (x) { return x; });
+  }
+
   function pct(x) {
     var v = (Number(x) || 0) * 100;
     return (Math.round(v * 10) / 10);
@@ -167,6 +183,7 @@
     probAtLeast: probAtLeast,
     probAllGroupsPresent: probAllGroupsPresent,
     handCounts: handCounts,
+    normalizeSteps: normalizeSteps,
     matchCombo: matchCombo,
     rankCombos: rankCombos,
     reqCoverage: reqCoverage,

@@ -83,3 +83,20 @@ t('百分比格式化', () => {
 });
 
 console.log(`\n${passed} 项全部通过`);
+
+// 详细版展开 JSON（对象步骤）也能导入
+(function () {
+  const C = require('../app/src/main/assets/core.js');
+  const steps = C.normalizeSteps([
+    { n: 1, phase: '主要阶段①', do: '发动白之落胤①', purpose: '把烙印龙送墓', risk: '被灰会断' },
+    '终场：黑衣龙 + 赫焉龙',
+    null
+  ]);
+  const ok1 = steps.length === 2
+    && steps[0].indexOf('1. 【主要阶段①】发动白之落胤①') === 0
+    && steps[0].indexOf('（把烙印龙送墓）') > 0
+    && steps[0].indexOf('风险：被灰会断') > 0
+    && steps[1] === '终场：黑衣龙 + 赫焉龙';
+  if (!ok1) { console.log('FAIL normalizeSteps', steps); process.exitCode = 1; }
+  else console.log('ok  normalizeSteps 支持对象步骤');
+})();

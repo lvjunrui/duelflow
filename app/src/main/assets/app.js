@@ -595,7 +595,7 @@
         id: c.id || C.newId('combo'),
         name: String(c.name || '未命名'),
         reqs: Array.isArray(c.reqs) ? c.reqs.map(function (r) { return { name: String(r.name || ''), n: Math.max(1, Number(r.n) || 1) }; }) : [],
-        steps: Array.isArray(c.steps) ? c.steps.map(String) : []
+        steps: C.normalizeSteps(c.steps)
       };
     });
     state.hand = [];
@@ -673,6 +673,18 @@
     if (ui.modal) { closeModal(); return true; }
     return false;
   };
+
+  /* 浮窗：只在本机 App 里可用 */
+  var ovBtn = document.getElementById('overlayBtn');
+  if (ovBtn) {
+    ovBtn.addEventListener('click', function () {
+      if (window.Android && window.Android.startOverlay) {
+        window.Android.startOverlay();
+      } else {
+        toast('浮窗只在手机 App 里可用');
+      }
+    });
+  }
 
   render();
 })();

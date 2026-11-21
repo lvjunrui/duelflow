@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>DuelFlow 浮窗</title>
+<style>
+  :root { --bg:#12161d; --card:#1a212b; --line:#263040; --text:#e6edf7; --dim:#8b9bb4; --gold:#e8b84b; --blue:#5aa9e6; --red:#e05b6a; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font:12px/1.45 -apple-system, "Noto Sans SC", sans-serif; }
+  body { padding:8px 8px 14px; }
+  .row { display:flex; gap:6px; align-items:center; }
+  button { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:7px; padding:7px 9px; font-size:12px; }
+  button.primary { background:#2b6cb0; border-color:#3b82d6; }
+  button:active { opacity:.7; }
+  .status { color:var(--dim); font-size:11px; margin:5px 0 8px; min-height:14px; }
+  .h { color:var(--dim); font-size:11px; margin:8px 0 4px; display:flex; justify-content:space-between; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; }
+  .chip { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px 8px; font-size:11px; }
+  .chip b { color:var(--gold); font-weight:600; }
+  .chip.opp { border-color:#4a2b33; }
+  .chip.hand { border-color:#2b4159; }
+  .adv { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:7px 8px; margin-bottom:6px; }
+  .adv .t { font-size:12px; font-weight:600; color:var(--text); }
+  .adv .x { color:var(--dim); font-size:11px; margin-top:3px; }
+  .adv .tag { float:right; font-size:10px; color:var(--bg); background:var(--gold); border-radius:4px; padding:1px 5px; }
+  input { flex:1; min-width:0; background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:6px 8px; font-size:12px; }
+  .empty { color:var(--dim); font-size:11px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <button class="primary" id="scan">识别屏幕</button>
+    <button id="cls">清空</button>
+  </div>
+  <div class="status" id="status">先打一局 MD，再点「识别屏幕」。</div>
+
+  <div class="h"><span>对方场上</span><span id="oppn">0</span></div>
+  <div class="chips" id="opp"></div>
+
+  <div class="h"><span>我的手牌</span><span id="handn">0</span></div>
+  <div class="row" style="margin-bottom:5px">
+    <input id="hq" list="dl" placeholder="加一张手牌…">
+    <button id="add">加</button>
+  </div>
+  <datalist id="dl"></datalist>
+  <div class="chips" id="hand"></div>
+
+  <div class="h"><span>建议</span><span id="advn"></span></div>
+  <div id="adv"></div>
+
+<script src="overlay-core.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>
