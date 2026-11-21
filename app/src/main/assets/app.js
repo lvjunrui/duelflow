@@ -114,6 +114,16 @@
 
   function clearHand() { state.hand = []; save(); render(); }
 
+  function loadPreset() {
+    if (state.cards.length && !confirm('会替换当前卡组（路线保留），继续？')) return;
+    state.cards = PRESET.map(function (p) {
+      return { name: p[0], kind: p[1], count: p[2] };
+    });
+    state.hand = [];
+    save(); render();
+    toast('已载入「圣徒百臂」40 张，分类可自行调整');
+  }
+
   function seedDemo() {
     if (state.cards.length && !confirm('已有卡组数据，示例会追加进去，继续？')) return;
     var demo = [
@@ -143,6 +153,33 @@
     save(); render();
     toast('示例数据已就绪，去「卡组」改成你自己的');
   }
+
+  /* 预置卡组：用户现有「圣徒百臂」主卡组 40 张（分类可按自己理解改） */
+  var PRESET = [
+    ['百臂无形手 伊卜揶尔', 'starter', 3],
+    ['神之百臂无形手', 'starter', 3],
+    ['罪宝的欺瞒', 'starter', 3],
+    ['圣徒蓟花', 'starter', 2],
+    ['百臂无形手 雅多揶尔', 'extender', 2],
+    ['百臂无形手 马基卜揶尔', 'extender', 2],
+    ['百臂无形幽狱 塔尔塔洛撕', 'extender', 1],
+    ['百臂无形诱惑手', 'extender', 1],
+    ['百臂无形招引手', 'extender', 1],
+    ['圣徒妖主', 'extender', 1],
+    ['黑魔女 迪亚贝尔斯塔', 'extender', 1],
+    ['圣徒・负疚', 'extender', 1],
+    ['白森之罪宝', 'extender', 2],
+    ['觉醒的罪宝', 'extender', 1],
+    ['圣徒・棘路', 'extender', 1],
+    ['幻惑见习魔术使', 'extender', 2],
+    ['狩猎罪宝的魔鬼', 'extender', 1],
+    ['灰流丽', 'handtrap', 3],
+    ['效果遮蒙者', 'handtrap', 2],
+    ['多多迷宝・软绵雀精', 'handtrap', 2],
+    ['无限泡影', 'handtrap', 2],
+    ['超融合', 'handtrap', 2],
+    ['增殖的Z', 'handtrap', 1]
+  ];
 
   /* ---------------- 视图 ---------------- */
 
@@ -276,6 +313,7 @@
     section(
       '<div class="panel-head"><h2>数据</h2></div>' +
       '<div class="io-row">' +
+        '<button class="btn small primary" data-act="loadPreset">载入「圣徒百臂」</button>' +
         '<button class="btn small" data-act="seedDemo">填充示例数据</button>' +
         '<button class="btn small" data-act="openIO" data-mode="export">导出</button>' +
         '<button class="btn small" data-act="openIO" data-mode="import">导入</button>' +
@@ -602,6 +640,7 @@
       case 'delCombo': delCombo(id); break;
       case 'reqInc': reqInc(name, Number(el.getAttribute('data-d'))); break;
       case 'seedDemo': seedDemo(); break;
+      case 'loadPreset': loadPreset(); break;
       case 'resetAll': resetAll(); break;
       case 'openIO': ui.ioMode = el.getAttribute('data-mode'); ui.modal = 'io'; render(); break;
       case 'copyIO': copyIO(); break;
