@@ -25,6 +25,7 @@ public class MainActivity extends Activity {
     private static final int REQ_OVERLAY_PERM = 101;
     private static final int REQ_CAPTURE = 102;
     private static final int REQ_NOTIF = 103;
+    private static final int REQ_PICK_JSON = 104;
 
     private WebView web;
     private MediaProjectionManager projectionManager;
@@ -71,6 +72,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean canOverlay() {
             return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void pickJson() {
+            runOnUiThread(MainActivity.this::openJsonPicker);
         }
 
         @JavascriptInterface
@@ -125,6 +131,10 @@ public class MainActivity extends Activity {
             }
             return;
         }
+        if (requestCode == REQ_PICK_JSON) {
+            if (resultCode == RESULT_OK) readPickedJson(data);
+            return;
+        }
         if (requestCode == REQ_CAPTURE) {
             if (resultCode != RESULT_OK || data == null) {
                 toast("已取消屏幕识别授权");
@@ -144,6 +154,56 @@ public class MainActivity extends Activity {
                 toast("浮窗启动失败：" + t.getClass().getSimpleName());
             }
         }
+    }
+
+    private void openJsonPicker() {
+        try {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            startActivityForResult(i, REQ_PICK_JSON);
+        } catch (Throwable t) {
+            toast("打不开文件选择器");
+        }
+    }
+
+    private void readPickedJson(Intent data) {
+        if (data == null || data.getData() == null) return;
+        String text = null;
+        try {
+            java.io.InputStream in = getContentResolver().openInputStream(data.getData());
+            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            in.close();
+            text = new String(bo.toByteArray(), "UTF-8");
+        } catch (Throwable t) {
+            web.post(() -> web.evaluateJavascript(
+                    "window.__onPickFail && window.__onPickFail('读取文件失败')", null));
+            return;
+        }
+        if (text == null) return;
+        final String js = "window.__onJsonPicked && window.__onJsonPicked(" + jsString(text) + ")";
+        web.post(() -> web.evaluateJavascript(js, null));
+    }
+
+    static String jsString(String s) {
+        if (s == null) return "null";
+        StringBuilder b = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\': b.append("\\\\"); break;
+                case '"': b.append("\\\""); break;
+                case '\n': b.append("\\n"); break;
+                case '\r': break;
+                case '\t': b.append("\\t"); break;
+                default:
+                    if (c < 0x20) b.append(' '); else b.append(c);
+            }
+        }
+        return b.append('"').toString();
     }
 
     private void toast(String msg) {

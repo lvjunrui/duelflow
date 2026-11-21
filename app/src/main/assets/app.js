@@ -455,7 +455,8 @@
         '<div class="muted small-pad">粘贴之前导出的 JSON。会覆盖当前卡组和路线。</div>' +
         '<textarea class="inp area mono" id="ioText" rows="10" placeholder="{' + '"cards":[...],"combos":[...]}"></textarea>' +
       '</div>' +
-      '<div class="sheet-foot"><button class="btn primary" data-act="applyIO">导入</button></div>';
+      '<div class="sheet-foot"><button class="btn" data-act="pickJson">选文件</button>' +
+      '<button class="btn primary" data-act="applyIO">导入</button></div>';
   }
 
   /* ---------------- 渲染 ---------------- */
@@ -581,10 +582,12 @@
     var ta = document.getElementById('ioText');
     if (!ta) return;
     var data;
+    var raw = C.cleanJson(ta.value);
     try {
-      data = JSON.parse(ta.value);
+      data = JSON.parse(raw);
     } catch (e) {
-      return toast('JSON 格式不对');
+      var len = (raw || '').length;
+      return toast('JSON 解析失败（' + len + ' 字）：' + String(e.message || '').slice(0, 40));
     }
     if (!data || !Array.isArray(data.cards)) return toast('缺少 cards 字段');
     state.cards = data.cards.map(function (c) {
@@ -601,6 +604,26 @@
     state.hand = [];
     save(); closeModal(); toast('导入完成');
   }
+
+  function pickJson() {
+    if (window.Android && window.Android.pickJson) {
+      window.Android.pickJson();
+    } else {
+      toast('选文件只在手机 App 里可用');
+    }
+  }
+
+  /* 原生把这个函数暴露给 Android 读文件后回调 */
+  window.__onJsonPicked = function (text) {
+    ui.modal = 'io';
+    ui.ioMode = 'import';
+    render();
+    var ta = document.getElementById('ioText');
+    if (!ta) return;
+    ta.value = C.cleanJson(text);
+    applyIO();
+  };
+  window.__onPickFail = function (msg) { toast(String(msg || '读取文件失败')); };
 
   function resetAll() {
     if (!confirm('清空所有卡组、路线和手牌？')) return;
@@ -645,6 +668,7 @@
       case 'openIO': ui.ioMode = el.getAttribute('data-mode'); ui.modal = 'io'; render(); break;
       case 'copyIO': copyIO(); break;
       case 'applyIO': applyIO(); break;
+      case 'pickJson': pickJson(); break;
     }
   });
 

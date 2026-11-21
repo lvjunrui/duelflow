@@ -100,3 +100,30 @@ console.log(`\n${passed} 项全部通过`);
   if (!ok1) { console.log('FAIL normalizeSteps', steps); process.exitCode = 1; }
   else console.log('ok  normalizeSteps 支持对象步骤');
 })();
+
+// cleanJson：粘贴容错
+(function () {
+  const C = require('../app/src/main/assets/core.js');
+  const cases = [
+    ['```json\n{"a":1}\n```', '{"a":1}'],
+    ['以下是导出内容：{"a":1}', '{"a":1}'],
+    ['{"a":"“x”"}', '{"a":"“x”"}'],
+    ['{“cards”:[]}', '{"cards":[]}'],
+    ['{"a":1,}', '{"a":1}'],
+    ['\uFEFF{"a":1}', '{"a":1}']
+  ];
+  let bad = 0;
+  cases.forEach(([inp, want]) => {
+    const got = C.cleanJson(inp);
+    if (got !== want) { console.log('FAIL cleanJson', JSON.stringify(inp), '→', JSON.stringify(got)); bad++; }
+  });
+  // 真实文件必须原样解析
+  const fs = require('fs');
+  const p = '/sdcard/Download/DSH-Go/烙印43-展开详细.json';
+  if (fs.existsSync(p)) {
+    const raw = fs.readFileSync(p, 'utf8');
+    const obj = JSON.parse(C.cleanJson(raw));
+    if (!obj.cards || !obj.combos) { console.log('FAIL 详细版清洗后结构不对'); bad++; }
+  }
+  if (bad) process.exitCode = 1; else console.log('ok  cleanJson 容错（含真实文件）');
+})();

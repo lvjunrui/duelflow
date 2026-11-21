@@ -149,6 +149,22 @@
   }
 
 
+
+  /* 清洗粘贴进来的 JSON：去 BOM、代码围栏、前后杂字、智能引号、尾逗号 */
+  function cleanJson(text) {
+    var t = String(text == null ? '' : text).replace(/^\uFEFF+/, '');
+    t = t.replace(/^[\s\S]*?```(?:json|JSON)?/, '').replace(/```[\s\S]*$/, '');
+    var a = t.indexOf('{');
+    var b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) t = t.slice(a, b + 1);
+    /* 只有整段没有普通引号时，才把智能引号当分隔符替换 */
+    if (t.indexOf('"') < 0) {
+      t = t.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+    }
+    t = t.replace(/,\s*([}\]])/g, '$1');
+    return t.trim();
+  }
+
   /* 路线步骤归一化：兼容「字符串数组」和「对象数组（详细版 JSON）」 */
   function normalizeSteps(steps) {
     if (!Array.isArray(steps)) return [];
@@ -184,6 +200,7 @@
     probAllGroupsPresent: probAllGroupsPresent,
     handCounts: handCounts,
     normalizeSteps: normalizeSteps,
+    cleanJson: cleanJson,
     matchCombo: matchCombo,
     rankCombos: rankCombos,
     reqCoverage: reqCoverage,
