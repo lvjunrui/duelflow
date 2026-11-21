@@ -112,8 +112,23 @@ public class MainActivity extends Activity {
             toast("系统不支持屏幕投屏");
             return;
         }
+        /* Android 14 起系统弹窗默认「共享一个应用」，那样切到游戏就截不到画面。
+           用 createConfigForDefaultDisplay() 明确申请「整个屏幕」，弹窗里就不会出现应用选择。 */
+        Intent intent = null;
+        if (Build.VERSION.SDK_INT >= 34) {
+            try {
+                intent = projectionManager.createScreenCaptureIntent(
+                        android.media.projection.MediaProjectionConfig.createConfigForDefaultDisplay());
+            } catch (Throwable t) {
+                intent = null;
+            }
+        }
         try {
-            startActivityForResult(projectionManager.createScreenCaptureIntent(), REQ_CAPTURE);
+            if (intent == null) {
+                intent = projectionManager.createScreenCaptureIntent();
+                toast("系统弹窗里请选「共享整个屏幕」，不要选「单个应用」");
+            }
+            startActivityForResult(intent, REQ_CAPTURE);
         } catch (Throwable t) {
             toast("无法申请屏幕录制权限");
         }

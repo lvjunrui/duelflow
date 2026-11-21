@@ -7,10 +7,11 @@
 - **实战**：从卡组点出手牌 → 所有展开路线按匹配度自动排序（命中率条 + 缺哪张），点「开始展开」进入逐步播放器，一步一步跟着做。
 - **卡组**：录入自己的牌，标成 抓手 / 展开点 / 手坑 / 终端；实时算起手概率（至少 1 抓手、抓手与展开点同时上手、至少 1 手坑）。
 - **路线**：把常用展开线写下来——需要哪几张卡、每一步操作。支持编辑、删除、导入导出 JSON。
-- **浮窗**（0.4）：悬浮窗 + 截屏识别，实战时不用手动点手牌。两条通道同时跑：
+- **浮窗**（0.4）：悬浮窗 + 截屏识别，实战时不用手动点手牌。**录屏必须授权「整个屏幕」**（Android 14+ 的系统弹窗默认是「共享单个应用」，那样切到 MD 就截不到画面；0.4.3 起 App 会主动申请整个屏幕）。两条通道同时跑：
   - **卡图模板匹配**：内置本卡组 49 张卡的小图模板，按画框做归一化互相关，认卡比 OCR 稳，还会给出匹配度；
   - **分带放大 OCR**：整屏切成上下两条带、放大约 1.5 倍再识别，卡面小字更容易读；
   - 两路结果合并成「对方场地 / 我方场地 / 手牌」，认错的点一下就能删，认漏的可以手动补。
+  - 状态行会显示识别走到哪一步（截屏 → 认卡 → 文字），20 秒没结果会自己报超时，不会一直卡着不动。
 - 数据全部存在手机本地（localStorage），**不联网、无网络权限**，不上传任何东西。
 
 ## 安装（推荐）
@@ -45,6 +46,10 @@ node .devtest/overlay.test.js    # 浮窗界面
 # 卡图模板匹配（纯 Java，桌面 JVM 直接跑）
 javac -d /tmp/dfout app/src/main/java/com/duelflow/app/CardMatcher.java test/java/MatcherTest.java
 java -cp /tmp/dfout MatcherTest app/src/main/assets/cards
+
+# 拿真实对局截图量耗时/命中（调阈值用，不进 CI）
+javac -d /tmp/dfout app/src/main/java/com/duelflow/app/CardMatcher.java test/java/RealShotTest.java
+java -cp /tmp/dfout RealShotTest app/src/main/assets/cards 截图.jpg
 ```
 
 ## 结构

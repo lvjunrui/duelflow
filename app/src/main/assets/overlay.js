@@ -56,6 +56,27 @@
 
   function status(msg) { $('status').textContent = msg; }
 
+  /* 阶段日志：native 每一步都会推状态，出问题时这些行会一起进诊断数据 */
+  var log = [];
+  function note(msg) {
+    try {
+      log.push(new Date().toISOString().slice(11, 19) + ' ' + msg);
+      if (log.length > 40) log.shift();
+    } catch (e) {}
+  }
+
+  /* native 回调里抛异常时，至少把错误显示在状态行，不再一动不动 */
+  function safe(fn) {
+    return function () {
+      try {
+        return fn.apply(this, arguments);
+      } catch (e) {
+        note('ERR ' + (e && e.message ? e.message : e));
+        status('浮窗脚本出错：' + (e && e.message ? e.message : e));
+      }
+    };
+  }
+
   /* ---------------- 渲染 ---------------- */
 
   function chip(c, kind, i) {
@@ -124,13 +145,37 @@
 
   /* ---------------- 识别入口 ---------------- */
 
+  var busy = false;
+  var scanTimer = null;
+
   function scan() {
     if (!hasNative()) {
       status('浮窗通道未连接：请从 App 里点「浮窗」开启');
       return;
     }
+    if (busy) {
+      status('上一次识别还没结束，稍等一下');
+      return;
+    }
+    busy = true;
+    note('scan 开始');
     status('正在截屏：卡图模板匹配 + 分带 OCR…');
-    callNative('capture');
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(function () {
+      if (!busy) return;
+      busy = false;
+      note('scan 超时');
+      status('25 秒没有结果：确认录屏共享的是「整个屏幕」，或关掉浮窗重开');
+    }, 25000);
+    if (!callNative('capture')) {
+      busy = false;
+      status('浮窗通道未连接：请从 App 里点「浮窗」开启');
+    }
+  }
+
+  function endScan() {
+    busy = false;
+    clearTimeout(scanTimer);
   }
 
   function errorText(msg) {
@@ -157,6 +202,8 @@
     if (state.ms) bits.push(state.ms + 'ms');
     if (state.note) bits.push(state.note);
     status(bits.join(' · '));
+    note('结果 ' + bits.join(' / '));
+    endScan();
     saveDiag(merged);
   }
 
@@ -166,28 +213,38 @@
       localStorage.setItem('df.diag.v1', JSON.stringify({
         at: Date.now(), w: state.w, h: state.h, ms: state.ms,
         hits: state.cards, lines: state.lines,
-        merged: { opp: merged.opp, mine: merged.mine, hand: merged.hand, unknown: merged.unknown }
+        merged: { opp: merged.opp, mine: merged.mine, hand: merged.hand, unknown: merged.unknown },
+        log: log
       }));
     } catch (e) {}
   }
 
-  window.__onCards = function (cards, w, h, ms, note) {
+  window.__onStatus = safe(function (msg) {
+    note('阶段 ' + msg);
+    status(String(msg || ''));
+  });
+
+  window.__onCards = safe(function (cards, w, h, ms, matched, extra) {
     state.cards = cards || [];
     state.w = w || state.w;
     state.h = h || state.h;
     state.ms = ms || 0;
-    state.note = note || '';
+    state.note = extra || '';
+    note('卡图 ' + state.cards.length + ' 处 ' + state.ms + 'ms ' + state.note);
     applyScan();
-  };
+  });
 
-  window.__onOcr = function (lines) {
+  window.__onOcr = safe(function (lines) {
     state.lines = lines || [];
+    note('文字 ' + state.lines.length + ' 行');
     applyScan();
-  };
+  });
 
-  window.__onOcrError = function (msg) {
+  window.__onOcrError = safe(function (msg) {
+    note('ERR ' + msg);
+    endScan();
     status(errorText(String(msg || '识别失败')));
-  };
+  });
 
   /* ---------------- 事件 ---------------- */
 
@@ -219,7 +276,9 @@
     $('diag').addEventListener('click', function () {
       var raw = '';
       try { raw = localStorage.getItem('df.diag.v1') || ''; } catch (e) {}
-      if (!raw) return status('还没有识别记录，先点「识别屏幕」');
+      if (!raw) {
+        raw = JSON.stringify({ at: Date.now(), noScan: true, status: $('status').textContent, log: log });
+      }
       if (callNative('copy', raw)) status('已复制识别数据，可以直接粘贴给 AI');
       else status('复制失败：浮窗通道未连接');
     });

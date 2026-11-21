@@ -74,6 +74,10 @@ public class OverlayService extends Service {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean capturing;
+    private int captureSeq;
+    private volatile String frameNote;
+    /** 一次识别有两路结果（卡图 / 文字），两路都到齐才算结束 */
+    private final AtomicInteger legs = new AtomicInteger(0);
     private int screenW, screenH, screenDpi;
 
     @Override
@@ -148,28 +152,87 @@ public class OverlayService extends Service {
             public void onStop() {
                 main.post(() -> stopSelf());
             }
+
+            /** 共享「单个应用」或进入画中画时系统会给新尺寸，跟着改截屏尺寸。 */
+            @Override
+            public void onCapturedContentResize(int width, int height) {
+                main.post(() -> {
+                    try {
+                        ensureCapture(width, height, screenDpi > 0 ? screenDpi : 440);
+                    } catch (Throwable t) {
+                        Log.w(TAG, "resize capture failed", t);
+                    }
+                });
+            }
         }, main);
 
+        ocr = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
+        /* 预热卡图库：放到后台线程，第一次识别不用再等 49 张卡图解图 */
+        worker.execute(() -> {
+            try {
+                CardLibrary.get(this);
+            } catch (Throwable t) {
+                Log.w(TAG, "warm card library failed", t);
+            }
+        });
+        try {
+            refreshCaptureSize();
+            postStatus("录屏通道就绪 " + screenW + "×" + screenH);
+        } catch (Throwable t) {
+            Log.w(TAG, "virtual display failed", t);
+            postError("建立截屏通道失败：" + t.getClass().getSimpleName() + "，请重开浮窗");
+        }
+    }
+
+    /** 按当前真实屏幕尺寸（已考虑横竖屏）建立或调整截屏通道。 */
+    private void refreshCaptureSize() {
         DisplayMetrics dm = new DisplayMetrics();
         Object sys = getSystemService(WINDOW_SERVICE);
         if (sys instanceof WindowManager) {
             ((WindowManager) sys).getDefaultDisplay().getRealMetrics(dm);
         }
-        screenW = dm.widthPixels > 0 ? dm.widthPixels : 1080;
-        screenH = dm.heightPixels > 0 ? dm.heightPixels : 1920;
-        screenDpi = dm.densityDpi > 0 ? dm.densityDpi : 440;
+        int w = dm.widthPixels > 0 ? dm.widthPixels : 1080;
+        int h = dm.heightPixels > 0 ? dm.heightPixels : 1920;
+        int dpi = dm.densityDpi > 0 ? dm.densityDpi : 440;
+        ensureCapture(w, h, dpi);
+    }
 
+    /**
+     * 尺寸变了（旋转屏幕、游戏从竖屏切横屏）就换一个 ImageReader 并 resize 同一个 VirtualDisplay。
+     * 不新建 VirtualDisplay：Android 14 起一个 MediaProjection 只能建一个。
+     */
+    private void ensureCapture(int w, int h, int dpi) {
+        if (projection == null) throw new IllegalStateException("projection null");
+        if (w <= 0 || h <= 0) throw new IllegalStateException("bad size " + w + "x" + h);
+        if (reader != null && w == screenW && h == screenH) return;
+        ImageReader nr = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2);
         try {
-            reader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-            display = projection.createVirtualDisplay("df-capture", screenW, screenH, screenDpi,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    reader.getSurface(), null, main);
-        } catch (Throwable t) {
-            Log.w(TAG, "virtual display failed", t);
-            postError("建立截屏通道失败：" + t.getClass().getSimpleName());
-            return;
+            if (display == null) {
+                display = projection.createVirtualDisplay("df-capture", w, h, dpi,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                        nr.getSurface(), null, main);
+            } else {
+                display.setSurface(nr.getSurface());
+                display.resize(w, h, dpi);
+            }
+        } catch (RuntimeException e) {
+            try {
+                nr.close();
+            } catch (Throwable ignored) {
+            }
+            throw e;
         }
-        ocr = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
+        ImageReader old = reader;
+        reader = nr;
+        screenW = w;
+        screenH = h;
+        screenDpi = dpi;
+        if (old != null) {
+            try {
+                old.close();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     /* ---------------- 悬浮窗 ---------------- */
@@ -282,51 +345,129 @@ public class OverlayService extends Service {
 
     /* ---------------- 抓图 + OCR ---------------- */
 
+    private static final int WATCHDOG_MS = 20000;
+    private static final String NO_FRAME_HINT =
+            "没截到画面：请确认系统弹窗选的是「共享整个屏幕」，并把游戏切到前台后再点一次";
+
     private void captureOnce() {
-        if (root == null || reader == null || ocr == null) {
-            postError("识别通道未就绪，请重开浮窗");
+        if (root == null || projection == null || ocr == null) {
+            postError("识别通道未就绪：请关掉浮窗，回 App 重新点「浮窗」");
             return;
         }
-        if (capturing) return;
+        if (capturing) {
+            postStatus("上一次识别还没结束，稍等一下");
+            return;
+        }
         capturing = true;
+        final int gen = ++captureSeq;
+        try {
+            /* 每次抓图前都按当前屏幕重新对一次尺寸：MD 是横屏，浮窗多半是竖屏时开的 */
+            refreshCaptureSize();
+        } catch (Throwable t) {
+            capturing = false;
+            postError("截屏通道失效：" + t.getClass().getSimpleName() + "，请重开浮窗");
+            return;
+        }
+        postStatus("正在截屏 " + screenW + "×" + screenH + "…");
         root.setVisibility(View.GONE);
         /* 等一帧，避免把自己的悬浮窗拍进去 */
-        main.postDelayed(() -> worker.execute(() -> {
-            Bitmap shot = null;
-            try {
-                shot = grabLatest();
-            } catch (Throwable t) {
-                Log.w(TAG, "grab failed", t);
-            }
-            final Bitmap bitmap = shot;
-            main.post(() -> {
-                if (root != null) root.setVisibility(View.VISIBLE);
-                capturing = false;
+        main.postDelayed(() -> {
+            if (gen != captureSeq) return;
+            worker.execute(() -> {
+                Bitmap shot = null;
+                try {
+                    shot = grabLatest();
+                } catch (Throwable t) {
+                    Log.w(TAG, "grab failed", t);
+                }
+                final Bitmap bmp = shot;
+                final String note = frameNote;
+                main.post(() -> {
+                    if (root != null) root.setVisibility(View.VISIBLE);
+                });
+                if (bmp == null) {
+                    capturing = false;
+                    postError(note != null ? note : NO_FRAME_HINT);
+                    return;
+                }
+                postStatus("已截到 " + bmp.getWidth() + "×" + bmp.getHeight()
+                        + (note != null ? "（" + note + "）" : "") + "，认卡中…");
+                try {
+                    analyze(bmp);
+                } catch (Throwable t) {
+                    Log.w(TAG, "analyze failed", t);
+                    capturing = false;
+                    postError("分析画面失败：" + t.getClass().getSimpleName());
+                } finally {
+                    bmp.recycle();
+                }
             });
-            if (bitmap == null) {
-                postError("没取到画面，请再点一次");
-                return;
+        }, 220);
+        /* 看门狗：不管卡在哪一步，都不能让浮窗永远停在「正在截屏」 */
+        main.postDelayed(() -> {
+            if (gen == captureSeq && capturing) {
+                capturing = false;
+                postError("识别超时（" + (WATCHDOG_MS / 1000) + " 秒没出结果）：再点一次，或关掉浮窗重开");
             }
-            analyze(bitmap);
-            bitmap.recycle();
-        }), 220);
+        }, WATCHDOG_MS);
     }
 
-    private Bitmap grabLatest() throws Exception {
-        Image img = reader.acquireLatestImage();
-        long deadline = System.currentTimeMillis() + 1600;
-        while (img == null && System.currentTimeMillis() < deadline) {
-            Thread.sleep(40);
-            img = reader.acquireLatestImage();
+    /**
+     * 抓一帧新画面。
+     * 先把 ImageReader 队列里攒的旧帧丢掉，再等这一瞬间的新帧；
+     * 新帧的时间戳如果很旧，说明录屏画面根本没更新（多半是系统只共享了「单个应用」）。
+     */
+    private Bitmap grabLatest() {
+        frameNote = null;
+        ImageReader r = reader;
+        if (r == null) {
+            frameNote = "截屏通道没建立起来：请重开浮窗";
+            return null;
         }
-        if (img == null) return null;
+        Image img;
+        while (true) {
+            try {
+                img = r.acquireLatestImage();
+            } catch (Throwable t) {
+                break;
+            }
+            if (img == null) break;
+            try {
+                img.close();
+            } catch (Throwable ignored) {
+            }
+        }
+        long deadline = System.currentTimeMillis() + 1800;
+        Image fresh = null;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                fresh = r.acquireLatestImage();
+            } catch (Throwable t) {
+                break;
+            }
+            if (fresh != null) break;
+            try {
+                Thread.sleep(40);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        if (fresh == null) {
+            frameNote = NO_FRAME_HINT;
+            return null;
+        }
         try {
-            Image.Plane plane = img.getPlanes()[0];
+            long age = System.nanoTime() - fresh.getTimestamp();
+            if (age > 1500000000L && age < 600000000000L) {
+                frameNote = "画面是 " + (age / 1000000000L) + " 秒前的，录屏可能没在更新";
+            }
+            Image.Plane plane = fresh.getPlanes()[0];
             ByteBuffer buf = plane.getBuffer();
             int pixelStride = plane.getPixelStride();
             int rowStride = plane.getRowStride();
-            int w = img.getWidth();
-            int h = img.getHeight();
+            int w = fresh.getWidth();
+            int h = fresh.getHeight();
             int rowPadding = rowStride - pixelStride * w;
             Bitmap padded = Bitmap.createBitmap(w + rowPadding / pixelStride, h, Bitmap.Config.ARGB_8888);
             padded.copyPixelsFromBuffer(buf);
@@ -335,7 +476,10 @@ public class OverlayService extends Service {
             padded.recycle();
             return cropped;
         } finally {
-            img.close();
+            try {
+                fresh.close();
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -346,9 +490,23 @@ public class OverlayService extends Service {
         try {
             bmp.getPixels(px, 0, w, 0, 0, w, h);
         } catch (Throwable t) {
+            capturing = false;
             postError("读取画面失败：" + t.getClass().getSimpleName());
             return;
         }
+        String darkNote = "";
+        try {
+            long sum = 0;
+            int n = 0;
+            for (int i = 0; i < px.length; i += 97) {
+                int c = px[i];
+                sum += ((c >> 16) & 0xff) + ((c >> 8) & 0xff) + (c & 0xff);
+                n++;
+            }
+            if (n > 0 && sum / (3.0 * n) < 10.0) darkNote = "画面是全黑，录屏通道可能失效";
+        } catch (Throwable ignored) {
+        }
+        legs.set(2);
         long t0 = System.currentTimeMillis();
         List<CardMatcher.Hit> hits = Collections.emptyList();
         String matchNote = "";
@@ -361,9 +519,20 @@ public class OverlayService extends Service {
             Log.w(TAG, "card match failed", t);
             matchNote = "（卡图匹配失败：" + t.getClass().getSimpleName() + "）";
         }
+        if (darkNote.length() > 0) matchNote = (matchNote + " " + darkNote).trim();
         long ms = System.currentTimeMillis() - t0;
         sendCards(hits, w, h, ms, matchNote);
+        endLeg();
+        postStatus("文字识别中（卡图 " + hits.size() + " 处，" + ms + "ms）…");
         runOcrBands(bmp, w, h);
+    }
+
+    /** 一路结果结束；两路都结束就放开 capturing。 */
+    private void endLeg() {
+        if (legs.decrementAndGet() <= 0) {
+            legs.set(0);
+            capturing = false;
+        }
     }
 
     private void sendCards(List<CardMatcher.Hit> hits, int w, int h, long ms, String note) {
@@ -392,6 +561,7 @@ public class OverlayService extends Service {
     private void runOcrBands(Bitmap bmp, int w, int h) {
         if (ocr == null) {
             postError("识别通道未就绪，请重开浮窗");
+            endLeg();
             return;
         }
         final int bands = 2;
@@ -460,6 +630,7 @@ public class OverlayService extends Service {
         sb.append(']');
         final String js = "window.__onOcr && window.__onOcr(" + sb + ")";
         main.post(() -> eval(js));
+        endLeg();
     }
 
     /** OCR 结果 → [{t,x,y,w,h}]，坐标换算回整屏坐标系。 */
@@ -494,6 +665,11 @@ public class OverlayService extends Service {
             web.evaluateJavascript(js, null);
         } catch (Throwable ignored) {
         }
+    }
+
+    /** 阶段提示：让浮窗上一直能看到「卡在哪一步」。 */
+    private void postStatus(String msg) {
+        main.post(() -> eval("window.__onStatus && window.__onStatus(" + jsString(msg) + ")"));
     }
 
     private void postError(String msg) {
