@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<title>DuelFlow 展开助手</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand">DuelFlow<span>展开助手</span></div>
+  <div id="deckBadge" class="badge">0 张</div>
+</header>
+
+<main id="view"></main>
+
+<nav id="tabs">
+  <button class="tab on" data-act="tab" data-tab="live"><span>⚔</span>实战</button>
+  <button class="tab" data-act="tab" data-tab="deck"><span>🂠</span>卡组</button>
+  <button class="tab" data-act="tab" data-tab="combos"><span>≣</span>路线</button>
+</nav>
+
+<div id="modal" class="modal hidden">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
