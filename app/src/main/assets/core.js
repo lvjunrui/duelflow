@@ -154,6 +154,9 @@
   function cleanJson(text) {
     var t = String(text == null ? '' : text).replace(/^\uFEFF+/, '');
     t = t.replace(/^[\s\S]*?```(?:json|JSON)?/, '').replace(/```[\s\S]*$/, '');
+    /* 复制时常混入的不换行空格 / 零宽字符，会让 JSON.parse 直接失败 */
+    t = t.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ');
+    t = t.replace(/[\u200B-\u200D\u2060]/g, '');
     var a = t.indexOf('{');
     var b = t.lastIndexOf('}');
     if (a >= 0 && b > a) t = t.slice(a, b + 1);
