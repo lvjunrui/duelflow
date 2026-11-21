@@ -337,7 +337,8 @@
         }
         return;
       }
-      var side = sideOf(hit.y, H);
+      var side = (hit.side === 'opp' || hit.side === 'mine' || hit.side === 'hand')
+          ? hit.side : sideOf(hit.y, H);
       buckets[side].push({
         name: hit.n,
         tag: tagOf(hit.n),

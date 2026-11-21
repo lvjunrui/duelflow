@@ -133,6 +133,7 @@ public final class CardMatcher {
         public String name;
         public float score;
         public float cx, cy, cw, ch;   // 原图坐标
+        public String side;            // "opp" / "mine" / "hand"；null = 由外部按 y 判断
 
         public boolean unknown() {
             return index < 0;

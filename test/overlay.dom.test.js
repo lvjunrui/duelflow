@@ -149,6 +149,19 @@ console.log('浮窗 DOM 冒烟测试');
   ok(/正在截屏/.test(els.status.textContent), '报错后还能再点识别（没有卡在 busy）');
 }
 
+/* 4b. 原生给了 side 就按 side 归位（魔陷区在 0.82H，不能按 y 猜成手牌） */
+{
+  const { els, win } = boot();
+  els.scan.click();
+  win.__onCards([
+    { n: '赫之烙印', s: 0.9, x: 1360, y: 1000, w: 144, h: 210, side: 'mine' },
+    { n: '白之圣女 艾克利西亚', s: 0.88, x: 900, y: 1130, w: 164, h: 240, side: 'hand' }
+  ], 2712, 1220, 60, '', '');
+  win.__onOcr([]);
+  ok(els.minen.textContent === 1, 'side=mine 的盖牌归到我方场地');
+  ok(els.handn.textContent === 1, 'side=hand 的手牌归到手牌');
+}
+
 /* 4. 卡牌落到对应区块 */
 {
   const { els, win } = boot();

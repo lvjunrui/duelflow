@@ -515,41 +515,18 @@ public class OverlayService extends Service {
             CardLibrary lib = CardLibrary.get(this);
             if (lib.cards.isEmpty()) matchNote = "（卡图库为空）";
 
-            /* ① 手牌：按 MD 固定版面定位每个卡位，再小范围对齐（最准，优先） */
+            /* ① 手牌：按 MD 固定版面定位每个卡位，再小范围对齐（最准） */
             int handHit = 0;
             for (SlotRecognizer.Slot s : SlotRecognizer.hand(px, w, h, lib.templates)) {
                 if (!s.confident()) continue;
-                CardMatcher.Hit hh = new CardMatcher.Hit();
-                hh.name = s.name;
-                hh.score = s.score;
-                hh.cx = s.x + s.w / 2f;
-                hh.cy = s.y + s.h / 2f;
-                hh.cw = s.w;
-                hh.ch = s.h;
-                hits.add(hh);
+                hits.add(toHit(s));
                 handHit++;
             }
 
-            /* ② 场上：只在场地中间那条区域搜，别再让左右两侧的火焰纹路刷出上百个假命中 */
-            int fx0 = (int) (w * 0.28f), fx1 = (int) (w * 0.74f);
-            int fy0 = (int) (h * 0.05f), fy1 = (int) (h * 0.80f);
-            int fw = Math.max(1, fx1 - fx0), fh = Math.max(1, fy1 - fy0);
-            int[] fieldPx = new int[fw * fh];
-            for (int y = 0; y < fh; y++) {
-                System.arraycopy(px, (fy0 + y) * w + fx0, fieldPx, y * fw, fw);
-            }
-            CardMatcher.Options opt = new CardMatcher.Options();
-            int[] size = new int[2];
-            float[] gray = CardMatcher.toGray(fieldPx, fw, fh, opt.workWidth, size);
-            float scale = (float) fw / size[0];
-            List<CardMatcher.Hit> raw = CardMatcher.matchGray(gray, size[0], size[1],
-                    lib.templates, opt, scale);
+            /* ② 场上 20 个格子：双方各 5 怪兽 + 5 魔陷，按实测版面定位 */
             int fieldHit = 0;
-            for (CardMatcher.Hit hh : raw) {
-                if (hh.unknown()) continue;      /* 认不出来就不报，免得面板一堆噪声 */
-                hh.cx += fx0;
-                hh.cy += fy0;
-                hits.add(hh);
+            for (SlotRecognizer.Slot s : SlotRecognizer.field(px, w, h, lib.templates)) {
+                hits.add(toHit(s));
                 fieldHit++;
             }
             matchNote = "（手牌 " + handHit + "，场上 " + fieldHit + "）";
@@ -583,8 +560,9 @@ public class OverlayService extends Service {
                     .append(",\"x\":").append(Math.round(hit.cx))
                     .append(",\"y\":").append(Math.round(hit.cy))
                     .append(",\"w\":").append(Math.round(hit.cw))
-                    .append(",\"h\":").append(Math.round(hit.ch))
-                    .append('}');
+                    .append(",\"h\":").append(Math.round(hit.ch));
+            if (hit.side != null) sb.append(",\"side\":").append(jsString(hit.side));
+            sb.append('}');
         }
         sb.append(']');
         final String js = "window.__onCards && window.__onCards(" + sb + "," + w + "," + h + ","
@@ -741,6 +719,18 @@ public class OverlayService extends Service {
             Log.w(TAG, "save png failed", t);
             postError("存图失败：" + t.getClass().getSimpleName());
         }
+    }
+
+    private static CardMatcher.Hit toHit(SlotRecognizer.Slot s) {
+        CardMatcher.Hit hh = new CardMatcher.Hit();
+        hh.name = s.name;
+        hh.side = s.side;
+        hh.score = s.score;
+        hh.cx = s.x + s.w / 2f;
+        hh.cy = s.y + s.h / 2f;
+        hh.cw = s.w;
+        hh.ch = s.h;
+        return hh;
     }
 
     /** 阶段提示：让浮窗上一直能看到「卡在哪一步」。 */

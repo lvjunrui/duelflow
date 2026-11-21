@@ -54,6 +54,12 @@ public class SlotTest {
             System.out.println("   " + (s.confident() ? "✓" : "·") + " " + s
                     + String.format("  margin=%.3f", s.margin));
         }
+        long t1 = System.currentTimeMillis();
+        List<SlotRecognizer.Slot> field = SlotRecognizer.field(px, w, h, tpl);
+        System.out.println("场上 " + (System.currentTimeMillis() - t1) + "ms  认出 " + field.size() + " 张");
+        for (SlotRecognizer.Slot s : field) {
+            System.out.println("   " + s.side + " " + s + String.format("  margin=%.3f", s.margin));
+        }
     }
 
     /** 合成一帧 2712×1220 的手牌画面，检查卡位几何 + 认卡是否跑通。 */

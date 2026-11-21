@@ -32,8 +32,17 @@ public final class SlotRecognizer {
 
     public static final int MAX_HAND = 6;
 
+    /** 场上格子（真机帧实测：列中心 0.3355/0.4185/0.5015/0.5844/0.6674×屏宽，
+     *  行中心：对方魔陷 0.28、对方怪兽 0.456、我方怪兽 0.645、我方魔陷 0.82×屏高；
+     *  场上卡约 0.0531×屏宽）。 */
+    public static final float[] FIELD_COLS = {0.3355f, 0.4185f, 0.5015f, 0.5844f, 0.6674f};
+    public static final float FIELD_CARD_W = 0.0531f;
+    public static final float ROW_OPP_ST = 0.28f, ROW_OPP_MON = 0.456f;
+    public static final float ROW_MY_MON = 0.645f, ROW_MY_ST = 0.82f;
+
     public static final class Slot {
         public String name;        // null = 没认出来
+        public String side;        // "opp" / "mine" / "hand"
         public float score, margin;
         public int x, y, w, h;     // 原图坐标（左上角 + 尺寸）
 
@@ -84,6 +93,42 @@ public final class SlotRecognizer {
         return best;
     }
 
+    /** 认场上 20 个格子（双方各 5 怪兽 + 5 魔陷）。只返回认出来的。 */
+    public static List<Slot> field(int[] px, int W, int H, List<CardMatcher.Template> tpl) {
+        List<Slot> out = new ArrayList<>();
+        if (tpl == null || tpl.isEmpty() || W < 200 || H < 200) return out;
+
+        int bandTop = (int) (0.20f * H);
+        int bandBot = (int) (0.92f * H);
+        int bandH = bandBot - bandTop;
+        if (bandH < 100) return out;
+        int[] band = new int[W * bandH];
+        for (int y = 0; y < bandH; y++) {
+            System.arraycopy(px, (bandTop + y) * W, band, y * W, W);
+        }
+        int[] size = new int[2];
+        float[] gray = CardMatcher.toGray(band, W, bandH, W, size);
+        band = null;
+
+        float[][] desc = smallDescs(tpl);
+        float cardW = FIELD_CARD_W * W;
+        float cardH = cardW * CARD_ASPECT;
+        float[][] rows = {
+                {ROW_OPP_ST, 0}, {ROW_OPP_MON, 0}, {ROW_MY_MON, 1}, {ROW_MY_ST, 1}
+        };
+        for (float[] row : rows) {
+            float cy = row[0] * H - bandTop;
+            for (int i = 0; i < FIELD_COLS.length; i++) {
+                float cx = FIELD_COLS[i] * W;
+                Slot s = scoreSlot(gray, size[0], size[1], desc, tpl,
+                        cx - cardW / 2f, cy - cardH / 2f, cardW, cardH, W, bandTop, 24);
+                s.side = (int) row[1] == 0 ? "opp" : "mine";
+                if (s.confident()) out.add(s);
+            }
+        }
+        return out;
+    }
+
     private static List<Slot> evaluate(float[] gray, int gw, int gh, int W, int H, int bandTop,
                                        float[][] desc, List<CardMatcher.Template> tpl, int n) {
         float cardW = HAND_CARD_W * W;
@@ -100,20 +145,22 @@ public final class SlotRecognizer {
         float firstX = (float) (W / 2.0 - fanW / 2.0);
         List<Slot> out = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            out.add(scoreSlot(gray, gw, gh, desc, tpl, firstX + i * pitch, top, cardW, cardH, W, bandTop));
+            Slot s = scoreSlot(gray, gw, gh, desc, tpl, firstX + i * pitch, top, cardW, cardH, W, bandTop, 16);
+            s.side = "hand";
+            out.add(s);
         }
         return out;
     }
 
     private static Slot scoreSlot(float[] gray, int gw, int gh, float[][] desc,
                                   List<CardMatcher.Template> tpl, float x, float top,
-                                  float cardW, float cardH, int W, int bandTop) {
+                                  float cardW, float cardH, int W, int bandTop, int radius) {
         float[] win = new float[DESC_W * DESC_H];
         float[] best = new float[]{-2, -2, -1, x, top, cardW};
 
         /* 粗搜：±16px、3 档缩放 */
-        for (int dx = -16; dx <= 16; dx += 8) {
-            for (int dy = -16; dy <= 16; dy += 8) {
+        for (int dx = -radius; dx <= radius; dx += radius / 2) {
+            for (int dy = -radius; dy <= radius; dy += radius / 2) {
                 for (float sc = 0.97f; sc <= 1.031f; sc += 0.03f) {
                     tryBox(gray, gw, gh, desc, x + dx, top + dy, cardW * sc, cardH * sc, win, best);
                 }
@@ -122,8 +169,8 @@ public final class SlotRecognizer {
         /* 细搜：在粗搜最优点附近再对齐一次 */
         if (best[0] > 0.35f) {
             float bx = best[3], by = best[4], bw = best[5];
-            for (int dx = -8; dx <= 8; dx += 3) {
-                for (int dy = -8; dy <= 8; dy += 3) {
+            for (int dx = -(radius / 2); dx <= radius / 2; dx += 3) {
+                for (int dy = -(radius / 2); dy <= radius / 2; dy += 3) {
                     for (float sc = 0.985f; sc <= 1.016f; sc += 0.015f) {
                         tryBox(gray, gw, gh, desc, bx + dx, by + dy, bw * sc, bw * sc * CARD_ASPECT, win, best);
                     }
