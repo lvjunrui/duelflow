@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,25 +25,50 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build debug APK
+      - name: 还原签名密钥
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/duelflow.p12"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/duelflow.p12" >> "$GITHUB_ENV"
+
+      - name: 构建签名版
+        if: env.KEYSTORE_B64 != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: gradle assembleRelease --no-daemon --console=plain
+
+      - name: 构建调试版（无密钥时的回退）
+        if: env.KEYSTORE_B64 == ''
         run: gradle assembleDebug --no-daemon --console=plain
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk DuelFlow.apk && ls -lh DuelFlow.apk
+      - name: 收集 APK
+        run: |
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk DuelFlow.apk
+            echo "使用正式签名构建"
+          elif [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk DuelFlow.apk
+            echo "使用调试签名构建"
+          else
+            echo "找不到构建产物"
+            exit 1
+          fi
+          ls -lh DuelFlow.apk
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: DuelFlow-apk
           path: DuelFlow.apk
 
-      - name: Publish release
+      - name: 发布 Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: 构建 #${{ github.run_number }}
           files: DuelFlow.apk
           body: |
-            自动构建的调试签名 APK，可直接安装。
+            固定签名，可直接覆盖安装更新版本。
 
-            下载：DuelFlow.apk
+            - 应用：DuelFlow 展开助手
+            - 包名：com.duelflow.app
